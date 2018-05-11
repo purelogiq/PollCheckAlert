@@ -7,7 +7,7 @@ from pytz import timezone
 from email.mime.multipart import MIMEMultipart
 
 # SETUP
-poll_frequency_seconds = 5 * 60 # CHANGE ME
+poll_frequency_seconds = 5 * 60  # CHANGE ME
 data = None
 old_data = None
 
@@ -21,11 +21,16 @@ def poll_check_alert():
     old_data = data
     data = requests.get(
         'https://bugzilla.mozilla.org/rest/jobqueue_status',
-        params={'Bugzilla_api_key': 'a bugzilla api key'} # CHANGE ME
+        params={'Bugzilla_api_key': 'a bugzilla api key'}  # CHANGE ME
     ).json()
 
     # CHECK: Check the data and set alert message/details if we should alert
-    if old_data and data['total'] >= old_data['total'] and old_data['total'] > 0:
+    threshold = 500  # CHANGE ME: totals below this will not get reported.
+    if (old_data
+        and data['total'] >= old_data['total']
+        and old_data['total'] > 0
+        and data['total'] > threshold
+    ):
         tz = timezone('US/Eastern')
         current_time = datetime.now(tz).strftime('%c')
         alert_message = (
@@ -36,8 +41,8 @@ def poll_check_alert():
 
     # ALERT: Send off an alert if needed
     if alert_message:
-        fromaddr = "example@gmail.com" # CHANGE ME
-        toaddr = "example@gmail.com" # CHANGE ME
+        fromaddr = "example@gmail.com"  # CHANGE ME
+        toaddr = "example@gmail.com"  # CHANGE ME
         msg = MIMEMultipart()
         msg['Subject'] = alert_message
         # If using gmail you'll have to enable less secure apps at
@@ -45,11 +50,13 @@ def poll_check_alert():
         # might want to use a less important address as the sender
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
-        server.login(fromaddr, "from email password") # CHANGE ME
+        server.login(fromaddr, "from email password")  # CHANGE ME
         text = msg.as_string()
         server.sendmail(fromaddr, toaddr, text)
         server.quit()
 
+poll_check_alert() # Do it once so that we don't have to wait the interval length for the first email
+time.sleep(10)
 while True:
     poll_check_alert()
     time.sleep(poll_frequency_seconds)
